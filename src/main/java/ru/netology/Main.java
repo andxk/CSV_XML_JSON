@@ -6,13 +6,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.opencsv.CSVReader;
 import com.opencsv.bean.ColumnPositionMappingStrategy;
 import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.w3c.dom.*;
 import org.xml.sax.SAXException;
 
@@ -53,10 +56,8 @@ public class Main {
             DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
             DocumentBuilder documentBuilder = documentFactory.newDocumentBuilder();
             Document doc = documentBuilder.parse(new File(fileName));
-
 //            Node root = doc.getDocumentElement();
 //            System.out.println( "Корневой элемент: " + root.getNodeName());
-
             List<Employee> list = new ArrayList<>();
             NodeList nodeList = doc.getElementsByTagName("employee");
 
@@ -66,7 +67,7 @@ public class Main {
                 for (int j = 0; j < empFields.getLength(); j++) {
                     Node field = empFields.item(j);
                     if (Node.ELEMENT_NODE == field.getNodeType()) {
-                        System.out.println(field.getNodeName() +" " + field.getTextContent());
+//                        System.out.println(field.getNodeName() +" " + field.getTextContent());
                         switch (field.getNodeName()) {
                             case "id" : employee.id = Integer.parseInt(field.getTextContent()); break;
                             case "age" : employee.age = Integer.parseInt(field.getTextContent()); break;
@@ -114,6 +115,56 @@ public class Main {
     }
 
 
+    // Чтение JSON из файла
+    public static String readString(String fileName) {
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+            String s;
+            while ((s = reader.readLine()) != null) {
+                sb.append(s);
+            }
+        }
+        catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+        return sb.toString();
+    }
+
+
+    public static List<Employee> jsonToList(String json) {
+
+        GsonBuilder builder = new GsonBuilder();
+        Gson gson = builder.create();
+
+        List<Employee> list = new ArrayList<>();
+
+        // Это работает без всяких JSONArray
+/*
+        try {
+            Type listType = new TypeToken<List<Employee>>() {}.getType();
+            list = gson.fromJson(json, listType);
+        } catch (JsonSyntaxException e) {
+            System.out.println(e.getMessage());
+        }
+*/
+
+        // Этот способ требуется по условиям задачи
+        try {
+            JSONParser parser = new JSONParser();
+            JSONArray jarray = (JSONArray) parser.parse(json);
+            for (Object o : jarray) {
+                Employee emp = gson.fromJson(o.toString(), Employee.class);
+                list.add(emp);
+            }
+        } catch (ParseException e) {
+            System.out.println(e.getMessage());
+        }
+
+        return list;
+    }
+
+
+
     public static void main(String[] args) {
         String[] columnMapping = {"id", "firstName", "lastName", "country", "age"};
 
@@ -121,14 +172,23 @@ public class Main {
         final String jsonFromCsvName = "data.json";
         final String xmlFileName = "data.xml";
         final String jsonFromXmlName = "data2.json";
+        final String jsonFileName = "new_data.json";
 
+        // Задача 1
         List<Employee> employees = parseCSV(columnMapping, csvFileName);
         String json = listToJson(employees);
         writeString(json, jsonFromCsvName);
 
+        // Задача 2
         employees = parseXML(xmlFileName);
         json = listToJson(employees);
         writeString(json, jsonFromXmlName);
 
+        // Задача 3
+        json = readString(jsonFileName);
+        employees = jsonToList(json);
+        employees.forEach(System.out::println);
+
     }
 }
+
